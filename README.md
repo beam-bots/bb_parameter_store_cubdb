@@ -104,6 +104,43 @@ firmware's root filesystem is read-only, and `bb` only logs a warning when a
 store fails to open, so a robot pointed at an unwritable path will boot with
 persistence quietly disabled.
 
+Which is a problem if the same robot module has to run on your laptop *and* on
+the device, because `/root` isn't writable on the one and `_build` doesn't exist
+on the other. Take the directory from the application environment instead:
+
+```elixir
+parameter_store_cubdb do
+  data_dir Application.compile_env(:my_app, :params_dir)
+end
+```
+
+Then give each environment and target its own value. In a Nerves project,
+`config/config.exs` ends with `import_config "#{Mix.target()}.exs"`, so the
+per-target files are where the paths go:
+
+```elixir
+# config/host.exs
+config :my_app, params_dir: Path.expand("_build/params")
+
+# config/rpi0_2.exs
+config :my_app, params_dir: "/root/params"
+```
+
+For a plain (non-Nerves) project the same trick works per `Mix.env()`, with
+`config/dev.exs` and `config/test.exs` setting their own directories — handy for
+keeping a test run from inheriting the gains you tuned in `dev`.
+
+Two things to know about this:
+
+- Use `Application.compile_env/2`, not `get_env/2` or `runtime.exs`. The DSL is
+  compiled, so the value has to be available at compile time — a key set in
+  `config/runtime.exs` is read far too late to end up in the section. The payoff
+  is that `compile_env` also tracks the key, so changing it triggers a recompile
+  rather than leaving a stale path baked into the BEAM file.
+- An unset key is a compile error, not a `nil` path, because the section's
+  schema requires a string. You'll hear about a missing target config while
+  you're building the firmware rather than after it's on the robot.
+
 ## Bounds aren't rechecked on load
 
 `bb` applies persisted values without revalidating them against each parameter's

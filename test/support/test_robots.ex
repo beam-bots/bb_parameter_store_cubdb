@@ -26,6 +26,23 @@ defmodule BB.Parameter.Store.CubDB.TestRobots do
     end
   end
 
+  defmodule ViaAppEnv do
+    @moduledoc "A robot whose data directory comes from the application environment."
+    use BB, extensions: [BB.Parameter.Store.CubDB.Dsl]
+
+    parameter_store_cubdb do
+      data_dir Application.compile_env(:bb_parameter_store_cubdb, :params_dir)
+    end
+
+    parameters do
+      param :kp, type: :float, default: 1.0, min: 0.0, max: 10.0
+    end
+
+    topology do
+      link :base_link
+    end
+  end
+
   defmodule ViaSettings do
     @moduledoc "A robot configured by naming the store directly, with no extension."
     use BB
