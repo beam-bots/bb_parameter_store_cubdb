@@ -7,7 +7,7 @@ defmodule BB.Parameter.Store.CubDB.DslTest do
 
   @moduletag :capture_log
 
-  alias BB.Parameter.Store.CubDB.TestRobots.{ViaExtension, ViaSettings}
+  alias BB.Parameter.Store.CubDB.TestRobots.{ViaAppEnv, ViaExtension, ViaSettings}
   alias Spark.Dsl.Extension
   alias Spark.Error.DslError
 
@@ -38,6 +38,43 @@ defmodule BB.Parameter.Store.CubDB.DslTest do
           use BB, extensions: [BB.Parameter.Store.CubDB.Dsl]
 
           parameter_store_cubdb do
+          end
+
+          topology do
+            link :base_link
+          end
+        end
+      end
+    end
+  end
+
+  describe "configuration from the application environment" do
+    test "resolves data_dir at compile time" do
+      assert {BB.Parameter.Store.CubDB, opts} =
+               Extension.get_opt(ViaAppEnv, [:settings], :parameter_store)
+
+      assert opts[:data_dir] == Application.get_env(:bb_parameter_store_cubdb, :params_dir)
+    end
+
+    test "persists into the configured directory" do
+      start_supervised!(ViaAppEnv)
+
+      assert :ok = BB.Parameter.set(ViaAppEnv, [:kp], 3.5)
+
+      stop_supervised!(ViaAppEnv)
+      start_supervised!(ViaAppEnv)
+
+      assert BB.Parameter.get!(ViaAppEnv, [:kp]) == 3.5
+      assert File.dir?("tmp/via_app_env")
+    end
+
+    test "an unset config key is a compile error rather than a nil path" do
+      assert_raise DslError, ~r/data_dir/, fn ->
+        defmodule UnsetKey do
+          use BB, extensions: [BB.Parameter.Store.CubDB.Dsl]
+
+          parameter_store_cubdb do
+            data_dir Application.compile_env(:bb_parameter_store_cubdb, :not_configured)
           end
 
           topology do

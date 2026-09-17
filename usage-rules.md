@@ -61,6 +61,10 @@ end
 
 - Put `data_dir` under `/root` on Nerves. That's the application data
   partition; the rest of the firmware's filesystem is read-only.
+- Take `data_dir` from `Application.compile_env/2` when one robot module runs on
+  both host and target, and set the key per target in `config/<target>.exs` (or
+  per env in `config/<env>.exs`). It must be `compile_env` — the DSL is compiled,
+  so `config/runtime.exs` is too late.
 - Let persisted values win over DSL defaults. That's `bb`'s load order, and it's
   what makes tuning stick.
 - Set `auto_file_sync false` only if you've measured a write throughput problem,
